@@ -60,7 +60,6 @@ import com.android.launcher3.BuildConfig;
 import com.android.launcher3.Flags;
 import com.android.launcher3.InvariantDeviceProfile;
 import com.android.launcher3.LauncherAppState;
-import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.LauncherFiles;
 import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
@@ -152,6 +151,9 @@ public class SettingsActivity extends FragmentActivity
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         if (LauncherPrefs.BLUR_DEPTH.getSharedPrefKey().equals(key)) {
+            LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
+        }
+        if (LauncherPrefs.SHOW_HOTSEAT_BG.getSharedPrefKey().equals(key)) {
             LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
         }
     }
@@ -446,6 +448,7 @@ public class SettingsActivity extends FragmentActivity
                 SettingsCache.INSTANCE.get(getContext())
                         .unregister(Settings.Global.getUriFor(DEVELOPMENT_SETTINGS_ENABLED), this);
             }
+            //LauncherPrefs.getPrefs(this).unregisterOnSharedPreferenceChangeListener(this);
         }
 
         /**

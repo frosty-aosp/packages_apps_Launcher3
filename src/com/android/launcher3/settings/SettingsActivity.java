@@ -153,7 +153,8 @@ public class SettingsActivity extends FragmentActivity
         if (LauncherPrefs.BLUR_DEPTH.getSharedPrefKey().equals(key)) {
             LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
         }
-        if (LauncherPrefs.SHOW_HOTSEAT_BG.getSharedPrefKey().equals(key)) {
+        if (LauncherPrefs.SHOW_HOTSEAT_BG.getSharedPrefKey().equals(key) ||
+                LauncherPrefs.HOTSEAT_OPACITY.getSharedPrefKey().equals(key)) {
             LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
         }
     }

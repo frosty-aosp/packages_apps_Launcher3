@@ -57,11 +57,13 @@ CONTAINER : RecentsViewContainer {
     private val downDirection = recentsView.pagedOrientationHandler.getDownDirection(isRtl)
 
     private var taskBeingDragged: TaskView? = null
+    private var lockDisplacement: Float = 0f
     private var maxLockDisplacement: Float = 0f
     private var verticalFactor: Int = 0
     private var canInterceptTouch = false
     private var wasLockedBeforeDrag = false
     private var hasLockThresholdHapticRun = false
+    private var previousLiveTileEnabled = false
 
     private fun canTaskLockTaskView(taskView: TaskView?) =
         taskView != null &&
@@ -174,6 +176,11 @@ CONTAINER : RecentsViewContainer {
         wasLockedBeforeDrag = taskBeingDragged.isLocked
         hasLockThresholdHapticRun = false
 
+        previousLiveTileEnabled = recentsView.enableDrawingLiveTile
+        if (taskBeingDragged.isRunningTask && previousLiveTileEnabled) {
+            recentsView.setEnableDrawingLiveTile(false)
+        }
+
         showLockPill(wasLockedBeforeDrag)
     }
 
@@ -187,13 +194,6 @@ CONTAINER : RecentsViewContainer {
         taskBeingDragged.secondaryDismissTranslationProperty.setValue(
             taskBeingDragged, boundedDisplacement
         )
-        if (taskBeingDragged.isRunningTask && recentsView.enableDrawingLiveTile) {
-            recentsView.runActionOnRemoteHandles { remoteTargetHandle ->
-                remoteTargetHandle.taskViewSimulator.taskSecondaryTranslation.value =
-                    boundedDisplacement
-            }
-            recentsView.redrawLiveTile()
-        }
         playLockThresholdHaptic(displacement)
         return true
     }
@@ -231,10 +231,11 @@ CONTAINER : RecentsViewContainer {
             }
         }
 
+        restoreLiveTile(taskBeingDragged)
         hideLockPill()
 
         val dismissLength = abs(maxLockDisplacement).roundToInt()
-        recentsView.runTaskDismissSettlingSpringAnimation(
+        val springSet = recentsView.runTaskDismissSettlingSpringAnimation(
             taskBeingDragged,
             false,
             RecentsDismissUtils.DismissedTaskData(
@@ -245,13 +246,9 @@ CONTAINER : RecentsViewContainer {
             ),
             false,
             false,
-        )?.addEndListener {
-            if (taskBeingDragged.isRunningTask) {
-                recentsView.runActionOnRemoteHandles { remoteTargetHandle ->
-                    remoteTargetHandle.taskViewSimulator.taskSecondaryTranslation.value = 0f
-                }
-                recentsView.redrawLiveTile()
-            }
+        )
+        springSet?.addEndListener {
+            taskBeingDragged.secondaryDismissTranslationProperty.setValue(taskBeingDragged, 0f)
             taskBeingDragged.translationZ = 0f
             taskBeingDragged.isBeingDismissed = false
         }
@@ -267,18 +264,23 @@ CONTAINER : RecentsViewContainer {
         actionsView.hideLockPill()
     }
 
+    private fun restoreLiveTile(taskView: TaskView) {
+        if (taskView.isRunningTask && previousLiveTileEnabled) {
+            recentsView.setEnableDrawingLiveTile(true)
+            recentsView.runActionOnRemoteHandles { remoteTargetHandle ->
+                remoteTargetHandle.taskViewSimulator.taskSecondaryTranslation.value = 0f
+            }
+            recentsView.redrawLiveTile()
+        }
+    }
+
     private fun clearState() {
         detector.finishedScrolling()
         detector.setDetectableScrollConditions(0, false)
         taskBeingDragged?.let {
             it.secondaryDismissTranslationProperty.setValue(it, 0f)
-            if (it.isRunningTask) {
-                recentsView.runActionOnRemoteHandles { remoteTargetHandle ->
-                    remoteTargetHandle.taskViewSimulator.taskSecondaryTranslation.value = 0f
-                }
-                recentsView.redrawLiveTile()
-            }
             it.translationZ = 0f
+            restoreLiveTile(it)
         }
         hideLockPill()
         taskBeingDragged = null

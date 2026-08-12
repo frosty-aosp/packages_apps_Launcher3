@@ -28,14 +28,12 @@ import static com.android.launcher3.util.SplitConfigurationOptions.STAGE_POSITIO
 import android.app.ActivityOptions;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
-import android.os.UserHandle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -43,7 +41,6 @@ import android.view.WindowInsets;
 import android.view.WindowManagerGlobal;
 import android.window.DesktopExperienceFlags;
 import android.window.SplashScreen;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -73,8 +70,6 @@ import com.android.systemui.shared.recents.view.RecentsTransition;
 import com.android.systemui.shared.system.ActivityManagerWrapper;
 import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
 
-import java.util.Arrays;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
@@ -424,17 +419,6 @@ public interface TaskShortcutFactory {
         }
     };
 
-    TaskShortcutFactory LOCK_APP = new TaskShortcutFactory() {
-        @Override
-        public List<SystemShortcut> getShortcuts(RecentsViewContainer container,
-                TaskContainer taskContainer) {
-            String packageName = taskContainer.getTask().getTopComponent().getPackageName();
-            Context context = taskContainer.getTaskView().getContext();
-            return Collections.singletonList(new LockAppSystemShortcut(
-                        context, container, taskContainer, packageName));
-        }
-    };
-
     TaskShortcutFactory FREE_FORM = new TaskShortcutFactory() {
         @Override
         public List<SystemShortcut> getShortcuts(RecentsViewContainer container,
@@ -594,52 +578,4 @@ public interface TaskShortcutFactory {
             return createSingletonShortcutList(modalStateSystemShortcut);
         }
     };
-
-    class LockAppSystemShortcut extends SystemShortcut<RecentsViewContainer> {
-        private static final String TAG = "LockAppSystemShortcut";
-        private final Task mTask;
-        private final String mPackageName;
-        List<String> mLockedTasks = new ArrayList<>();
-        private String mStartPkg, mEndPkg;
-        private Context mContext;
-
-        public LockAppSystemShortcut(Context context, RecentsViewContainer target, TaskContainer taskContainer, String packageName) {
-            super(R.drawable.recents_locked, R.string.action_lock,
-                    target, taskContainer.getItemInfo(), taskContainer.getTaskView());
-            mTask = taskContainer.getTask();
-            mPackageName = packageName;
-            mContext = context;
-
-            String lockedTasks = Settings.System.getStringForUser(
-                    mContext.getContentResolver(),
-                    Settings.System.RECENTS_LOCKED_TASKS,
-                    UserHandle.USER_CURRENT);
-
-            if (mLockedTasks.size() == 0 && lockedTasks != null && !lockedTasks.isEmpty()) {
-                mLockedTasks = new ArrayList<String>(Arrays.asList(lockedTasks.split(",")));
-            }
-        }
-
-        @Override
-        public void onClick(View view) {
-            if (mPackageName != null) {
-                if (mTask != null) {
-                    if (mLockedTasks.contains(mPackageName)) {
-                        mLockedTasks.remove(mPackageName);
-                        Toast unlockApp = Toast.makeText(mContext, R.string.unlock_app,
-                            Toast.LENGTH_SHORT);
-                        unlockApp.show();
-                    } else {
-                        mLockedTasks.add(mPackageName);
-                        Toast lockApp = Toast.makeText(mContext, R.string.lock_app,
-                            Toast.LENGTH_SHORT);
-                        lockApp.show();
-                    }
-                }
-            }
-           Settings.System.putStringForUser(mContext.getContentResolver(),
-           Settings.System.RECENTS_LOCKED_TASKS, String.join(",", mLockedTasks),
-                UserHandle.USER_CURRENT);
-        }
-    }
 }
